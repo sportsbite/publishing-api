@@ -13,9 +13,10 @@ gem "pg"
 gem 'dalli'
 
 if ENV["API_DEV"]
+
   gem "gds-api-adapters", path: "../gds-api-adapters"
 else
-  gem "gds-api-adapters", "38.0.0"
+  gem "gds-api-adapters", :git => 'https://github.com/alphagov/gds-api-adapters.git', :branch => 'add-import-endpoint-adapter'
 end
 
 gem "gds-sso", "13.0.0"

@@ -1,4 +1,17 @@
 GIT
+  remote: https://github.com/alphagov/gds-api-adapters.git
+  revision: fd799e02712ec50dd877d44d88b7fa5caac45e97
+  branch: add-import-endpoint-adapter
+  specs:
+    gds-api-adapters (38.0.0)
+      link_header
+      lrucache (~> 0.1.1)
+      null_logger
+      plek (>= 1.9.0)
+      rack-cache
+      rest-client (~> 2.0)
+
+GIT
   remote: https://github.com/alphagov/sidekiq-unique-jobs
   revision: 6c03e39c3ad6ba1468d567c22bb99908f6fdb317
   specs:
@@ -81,7 +94,7 @@ GEM
     diff-lcs (1.2.5)
     diffy (3.1.0)
     docile (1.1.5)
-    domain_name (0.5.20160826)
+    domain_name (0.5.20161129)
       unf (>= 0.0.5, < 1.0.0)
     erubis (2.7.0)
     factory_girl (4.7.0)
@@ -94,13 +107,6 @@ GEM
     faraday (0.9.2)
       multipart-post (>= 1.2, < 3)
     find_a_port (1.0.1)
-    gds-api-adapters (38.0.0)
-      link_header
-      lrucache (~> 0.1.1)
-      null_logger
-      plek (>= 1.9.0)
-      rack-cache
-      rest-client (~> 2.0)
     gds-sso (13.0.0)
       multi_json (~> 1.0)
       oauth2 (~> 1.0)
@@ -403,7 +409,7 @@ DEPENDENCIES
   diffy (~> 3.1)
   factory_girl_rails (= 4.7.0)
   faker
-  gds-api-adapters (= 38.0.0)
+  gds-api-adapters!
   gds-sso (= 13.0.0)
   govspeak (~> 5.0.2)
   govuk-lint
@@ -437,4 +443,4 @@ DEPENDENCIES
   whenever (= 0.9.4)
 
 BUNDLED WITH
-   1.13.1
+   1.13.6
