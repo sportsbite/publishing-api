@@ -14,6 +14,7 @@ private
   end
 
   def error_message(base_path, conflict)
+    raise "Exception"
     message = "base path=#{base_path} conflicts with content_id=#{conflict[:content_id]}"
     message << " and locale=#{conflict[:locale]}" if conflict[:locale]
     message

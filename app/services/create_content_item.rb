@@ -7,10 +7,14 @@ module Services
       @lock_version = lock_version
     end
 
-    def create_content_item(&block)
-      ContentItem.create!(content_attributes).tap do |content_item|
+    def create_content_item(save: true, &block)
+      ContentItem.new(content_attributes).tap do |content_item|
+        lock_version = LockVersion.new(target: content_item, number: lock_version)
+        ensure_link_set_exists(content_item)
+        puts "SOMETHING DISTINCTIVE!"
         yield(content_item) if block
-        create_supporting_objects(content_item)
+        puts save
+        content_item.save! if save
       end
     end
 
@@ -18,12 +22,6 @@ module Services
 
     def content_attributes
       payload.slice(*ContentItem::TOP_LEVEL_FIELDS)
-    end
-
-    def create_supporting_objects(content_item)
-      LockVersion.create!(target: content_item, number: lock_version)
-
-      ensure_link_set_exists(content_item)
     end
 
     def locale
