@@ -6,76 +6,65 @@ module Presenters
         @controller = controller
       end
 
+      # FIXME: maybe move this into a new private class
+      def links_by_link_type(content_id, link_types_path = [], parent_content_ids = [])
+        unless link_types_path.empty?
+          next_level_link_types = rules.next_level_link_types(link_types_path)
+          return {} if next_level_link_types && next_level_link_types.empty?
+        end
+
+        where = { "link_sets.content_id": content_id }
+        where[:link_type] = next_level_link_types if next_level_link_types
+        links = Link
+          .joins(:link_set)
+          .where(where)
+          .where.not(target_content_id: parent_content_ids)
+          .order(link_type: :asc, position: :asc)
+          .pluck(:link_type, :target_content_id)
+
+        grouped = links
+          .group_by(&:first)
+          .map { |type, values| [type.to_sym, values.map(&:last)] }
+        Hash[grouped]
+      end
+
       def expand
-        parents(content_id)
+        links_with_content(link_graph)
       end
 
     private
 
-      attr_reader :content_id, :controller, :state_fallback_order
+      attr_reader :content_id, :controller
 
-      def parents(content_id, type = nil, visited = [], level_index = 0)
-        visited << content_id
-        links = all_links(content_id, type)
-        cached_web_content_items = all_web_content_items(links)
-        level = links.each_with_object({}) do |link, memo|
-          link_type = link["link_type"].to_sym
-          memo[link_type] = expand_level(link, cached_web_content_items, visited, level_index).compact
-        end
-        level.select { |_k, v| v.present? }
-      end
-
-      def all_web_content_items(links)
-        web_content_items_including_withdrawn(links).each_with_object({}) do |content_item, memo|
-          memo[content_item.content_id] = content_item
-        end
-      end
-
-      def web_content_items_including_withdrawn(links)
-        uniq_links = links.flat_map { |l| JSON.parse(l["target_content_ids"]) }.uniq
-        controller.web_content_items(uniq_links)
-      end
-
-      def expand_level(link, all_web_content_items, visited, level_index)
-        JSON.parse(link["target_content_ids"]).map do |target_id|
-          web_content_item = all_web_content_items[target_id]
-          next unless link_should_be_expanded?(link["link_type"], web_content_item)
-          rules.expand_field(web_content_item).tap do |expanded|
-            next_level = next_level(link, target_id, visited, level_index)
-            expanded.merge!(links: next_level) if expanded
+      def web_content_items
+        @web_content_items ||= controller
+          .web_content_items(link_graph.links_content_ids)
+          .each_with_object({}) do |content_item, memo|
+            memo[content_item.content_id] = content_item
           end
+      end
+
+      def link_graph
+        @link_graph ||= LinkGraph.new(content_id, self)
+      end
+
+      def links_with_content(link_source)
+        link_source.links.each_with_object({}) do |(link_type, links), memo|
+          links_with_content = links.map { |node| link_content(link_type, node) }.compact
+          memo[link_type] = links_with_content unless links_with_content.empty?
         end
       end
 
-      def link_should_be_expanded?(link_type, web_content_item)
-        return false unless web_content_item
-        web_content_item.state != 'unpublished' || withdrawn_parent?(link_type, web_content_item.state)
+      def link_content(link_type, node)
+        content_item = web_content_items[node.content_id]
+        return if !content_item || !should_link?(link_type, content_item)
+        rules.expand_field(content_item).tap do |expanded|
+          expanded.merge!(links: links_with_content(node))
+        end
       end
 
-      def withdrawn_parent?(link_type, state)
-        state == "unpublished" && link_type == 'parent'
-      end
-
-      def next_level(current_level, target_id, visited, level_index)
-        return {} if visited.include?(target_id)
-        return {} unless rules.recurse?(current_level["link_type"], level_index)
-        level_index += 1
-        visited << target_id
-        next_level_type = rules.next_level(current_level["link_type"], level_index)
-        parents(target_id, next_level_type, visited.uniq, level_index)
-      end
-
-      def all_links(content_id, link_type = nil)
-        sql = <<-SQL
-          select links.link_type,
-            json_agg(links.target_content_id order by links.link_type asc, links.position asc) as target_content_ids
-          from links
-          join link_sets on link_sets.id = links.link_set_id
-          where link_sets.content_id = '#{content_id}'
-          #{"and link_type = '#{link_type}'" if link_type}
-          group by links.link_type;
-        SQL
-        ActiveRecord::Base.connection.execute(sql)
+      def should_link?(link_type, content_item)
+        link_type == :parent || content_item.state != "unpublished"
       end
 
       def rules

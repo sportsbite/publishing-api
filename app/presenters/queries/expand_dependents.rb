@@ -10,6 +10,24 @@ module Presenters
         dependents
       end
 
+      def link_graph
+        LinkGraph.new(content_id, self)
+      end
+
+      def links_by_link_type(content_id)
+        links = Link
+          .where(target_content_id: content_id)
+          .joins(:link_set)
+          .where(link_type: rules.reverse_recursive_types)
+          .order(link_type: :asc, position: :asc)
+          .pluck(:link_type, :content_id)
+
+        grouped = links
+          .group_by(&:first)
+          .map { |type, values| [type.to_sym, values.map(&:last)] }
+        Hash[grouped]
+      end
+
     private
 
       attr_reader :content_id, :controller
@@ -57,7 +75,7 @@ module Presenters
       end
 
       def rules
-        ::Queries::DependeeExpansionRules
+        ::Queries::DependentExpansionRules
       end
     end
   end
