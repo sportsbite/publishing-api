@@ -18,7 +18,7 @@ module Queries
         edition_ids = Queries::GetEditionIdsWithFallbacks.(
           Edition.with_document.distinct.where(
             document_type: [document_type, "placeholder_#{document_type}"]
-          ).pluck('documents.content_id'),
+          ).select('documents.content_id'),
           state_fallback_order: [:published, :draft]
         )
 
