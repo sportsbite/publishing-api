@@ -9,9 +9,11 @@ namespace :represent_downstream do
 
   desc "Represent all editions downstream"
   task all: :environment do
-    represent_downstream(
-      Edition.with_document.where.not(content_store: nil)
-    )
+    DistributedLock.lock("represent-all") do
+      represent_downstream(
+        Edition.with_document.where.not(content_store: nil)
+      )
+    end
   end
 
   desc "

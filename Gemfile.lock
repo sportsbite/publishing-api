@@ -167,6 +167,8 @@ GEM
     mime-types-data (3.2016.0521)
     mini_portile2 (2.1.0)
     minitest (5.9.1)
+    mlanett-redis-lock (0.2.7)
+      redis
     money (6.7.1)
       i18n (>= 0.6.4, <= 0.7.0)
       sixarm_ruby_unaccent (>= 1.1.1, < 2)
@@ -414,6 +416,7 @@ DEPENDENCIES
   hashdiff
   json-schema
   logstasher (= 0.6.2)
+  mlanett-redis-lock (~> 0.2.7)
   oj (~> 2.16.1)
   oj_mimic_json (~> 1.0.1)
   pact

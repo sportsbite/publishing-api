@@ -9,3 +9,7 @@ job_type :rake, "cd :path && govuk_setenv content-store bundle exec rake :task :
 every 1.minute do
   rake "heartbeat_messages:send"
 end
+
+every :day, at: '12:30am' do
+  rake "represent_downstream:all"
+end
