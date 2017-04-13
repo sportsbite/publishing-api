@@ -1,3 +1,5 @@
+require 'gds_api/asset_manager'
+
 module Commands
   module V2
     class Publish < BaseCommand
@@ -27,6 +29,7 @@ module Commands
           clear_published_items_of_same_locale_and_base_path
         end
 
+        render_pdf if html_publication?
         set_public_updated_at
         set_first_published_at
         edition.publish
@@ -220,6 +223,51 @@ module Commands
           locale: locale,
           payload_version: event.id,
         }
+      end
+
+      def html_publication?
+        edition.document_type == 'html_publication'
+      end
+
+      def render_pdf
+        html = fetch_rendered_html_for_edition
+        pdf_kit = PDFKit.new(html, viewport_size: '1280x1024')
+
+        pdf_io = StringIO.new
+        pdf_io.write(pdf_kit.to_pdf)
+        pdf_io.rewind
+        pdf_string = pdf_io.read
+
+        filename = edition.title.parameterize
+
+        file = Tempfile.new([filename, '.pdf'], encoding: 'utf-8')
+        file.write(pdf_string)
+
+        asset_manager = GdsApi::AssetManager.new(
+          Plek.find('asset-manager'),
+          bearer_token: ENV['ASSET_MANAGER_BEARER_TOKEN'] || '12345678'
+        )
+
+        # TODO: Check the HTML attachment if a PDF exists already, and do an update instead using update_asset
+        # NB: Something about gds-api-adapters and/or asset-manager doesn't like Tempfiles, but for some
+        # reason if we hand it a File object instead, everything works just fine
+        asset_result = asset_manager.create_asset(file: File.open(file.path))
+        file.close!
+
+        asset_url = asset_result['file_url']
+
+        # We'll probably want to do this in a worker (along with the rest of this rendering), since the
+        # URL we receive from Asset Manager will not necessarily return the PDF immediately
+        # NB: We should probably also update the links on the parent Edition, so that we can link to the PDF
+        # from the Edition page
+        edition.update_attributes!(details: edition[:details].merge(pdf_asset_url: asset_url))
+      end
+
+      def fetch_rendered_html_for_edition
+        # TODO: We'll probably want to check that we're fetching the latest version of the HTML, or - better yet -
+        # fetch it from the previewing API
+        url = Plek.find('government-frontend') + edition[:base_path]
+        open(url).read
       end
     end
   end

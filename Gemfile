@@ -19,7 +19,12 @@ else
 end
 
 gem "gds-sso", "13.0.0"
-gem "govuk_schemas", require: false
+if ENV["API_DEV"]
+  gem "govuk_schemas", path: "../govuk_schemas"
+else
+  gem "govuk_schemas", require: false
+end
+
 gem "govuk_document_types", "~> 0.1.4"
 
 gem 'bunny', '2.5.1'
@@ -31,6 +36,8 @@ gem "sidekiq-unique-jobs", git: "https://github.com/alphagov/sidekiq-unique-jobs
 gem "govspeak", "~> 5.0.2"
 gem "diffy", "~> 3.1", require: false
 gem "aws-sdk", "~> 2"
+gem 'pdfkit'
+gem 'wkhtmltopdf-binary-edge', '~> 0.12.4.0'
 
 group :development do
   # Access an IRB console on exception pages or by using <%= console %> in views
