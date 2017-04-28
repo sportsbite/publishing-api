@@ -5,6 +5,8 @@ module Presenters
       :api_url,
       :content_store,
       :created_at,
+      :description_json,
+      :description_string,
       :document_id,
       :id,
       :last_edited_at,
