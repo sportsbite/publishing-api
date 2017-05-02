@@ -21,8 +21,8 @@ RSpec.describe Commands::V2::PutContent do
         title: "Some Title",
         publishing_app: "publisher",
         rendering_app: "frontend",
-        document_type: "nonexistent-schema",
-        schema_name: "nonexistent-schema",
+        document_type: "nonexistent-schema", #valid schema?
+        schema_name: "nonexistent-schema", #valid schema?
         locale: locale,
         routes: [{ path: base_path, type: "exact" }],
         redirects: [],
@@ -45,7 +45,7 @@ RSpec.describe Commands::V2::PutContent do
       }
     end
 
-    it "sends to the downstream draft worker" do
+    it "sends to the downstream draft worker" do #unit
       expect(DownstreamDraftWorker).to receive(:perform_async_in_queue)
         .with(
           "downstream_high",
@@ -55,12 +55,12 @@ RSpec.describe Commands::V2::PutContent do
       described_class.call(payload)
     end
 
-    it "does not send to the downstream publish worker" do
+    it "does not send to the downstream publish worker" do #unit
       expect(DownstreamLiveWorker).not_to receive(:perform_async_in_queue)
       described_class.call(payload)
     end
 
-    it "creates an action" do
+    it "creates an action" do #unit
       expect(Action.count).to be 0
       described_class.call(payload)
       expect(Action.count).to be 1
@@ -72,7 +72,7 @@ RSpec.describe Commands::V2::PutContent do
     end
 
     context "when the 'downstream' parameter is false" do
-      it "does not send to the downstream draft worker" do
+      it "does not send to the downstream draft worker" do #unit
         expect(DownstreamDraftWorker).not_to receive(:perform_async_in_queue)
 
         described_class.call(payload, downstream: false)
@@ -80,7 +80,7 @@ RSpec.describe Commands::V2::PutContent do
     end
 
     context "when the 'bulk_publishing' flag is set" do
-      it "enqueues in the correct queue" do
+      it "enqueues in the correct queue" do #unit
         expect(DownstreamDraftWorker).to receive(:perform_async_in_queue)
           .with(
             "downstream_low",
@@ -92,7 +92,7 @@ RSpec.describe Commands::V2::PutContent do
     end
 
     context "when there are no previous path reservations" do
-      it "creates a path reservation" do
+      it "creates a path reservation" do #unit
         expect {
           described_class.call(payload)
         }.to change(PathReservation, :count).by(1)
@@ -111,7 +111,7 @@ RSpec.describe Commands::V2::PutContent do
         )
       end
 
-      it "raises an error" do
+      it "raises an error" do #unit
         expect {
           described_class.call(payload)
         }.to raise_error(CommandError, /is already reserved/i)
@@ -143,7 +143,7 @@ RSpec.describe Commands::V2::PutContent do
                              target_content_id: document.content_id)
       end
 
-      it "creates the draft's user-facing version using the live's user-facing version as a starting point" do
+      it "creates the draft's user-facing version using the live's user-facing version as a starting point" do #integration
         described_class.call(payload)
 
         edition = Edition.last
@@ -154,7 +154,7 @@ RSpec.describe Commands::V2::PutContent do
         expect(edition.user_facing_version).to eq(6)
       end
 
-      it "copies over the first_published_at timestamp" do
+      it "copies over the first_published_at timestamp" do #integration
         described_class.call(payload)
 
         edition = Edition.last
@@ -172,13 +172,13 @@ RSpec.describe Commands::V2::PutContent do
           )
         end
 
-        it "sets the correct base path on the location" do
+        it "sets the correct base path on the location" do #integration
           described_class.call(payload)
 
           expect(Edition.where(base_path: "/moved", state: "draft")).to exist
         end
 
-        it "creates a redirect" do
+        it "creates a redirect" do #integration
           described_class.call(payload)
 
           redirect = Edition.find_by(
@@ -197,7 +197,7 @@ RSpec.describe Commands::V2::PutContent do
           }])
         end
 
-        it "sends a create request to the draft content store for the redirect" do
+        it "sends a create request to the draft content store for the redirect" do #unit
           expect(DownstreamDraftWorker).to receive(:perform_async_in_queue).twice
 
           described_class.call(payload)
@@ -208,7 +208,7 @@ RSpec.describe Commands::V2::PutContent do
             payload.merge!(locale: "fr", title: "French Title")
           end
 
-          it "creates a separate draft edition in the given locale" do
+          it "creates a separate draft edition in the given locale" do #integration
             described_class.call(payload)
             expect(Edition.count).to eq(2)
 
@@ -224,7 +224,7 @@ RSpec.describe Commands::V2::PutContent do
           DatabaseCleaner.clean_with :truncation
         end
 
-        it "copes with race conditions" do
+        it "copes with race conditions" do #unit
           described_class.call(payload)
           Commands::V2::Publish.call(content_id: content_id, update_type: "minor")
 
@@ -247,7 +247,7 @@ RSpec.describe Commands::V2::PutContent do
         )
       end
 
-      it "creates the draft's lock version using the unpublished lock version as a starting point" do
+      it "creates the draft's lock version using the unpublished lock version as a starting point" do #integration
         described_class.call(payload)
 
         edition = Edition.last
@@ -258,7 +258,7 @@ RSpec.describe Commands::V2::PutContent do
         expect(edition.document.stale_lock_version).to eq(3)
       end
 
-      it "creates the draft's user-facing version using the unpublished user-facing version as a starting point" do
+      it "creates the draft's user-facing version using the unpublished user-facing version as a starting point" do #integration
         described_class.call(payload)
 
         edition = Edition.last
@@ -269,7 +269,7 @@ RSpec.describe Commands::V2::PutContent do
         expect(edition.user_facing_version).to eq(6)
       end
 
-      it "allows the setting of first_published_at" do
+      it "allows the setting of first_published_at" do #integrations
         explicit_first_published = DateTime.new(2016, 05, 23, 1, 1, 1).rfc3339
         payload[:first_published_at] = explicit_first_published
 
@@ -284,7 +284,7 @@ RSpec.describe Commands::V2::PutContent do
     end
 
     context "when the payload is for a brand new edition" do
-      it "creates an edition" do
+      it "creates an edition" do #integration
         described_class.call(payload)
         edition = Edition.last
 
@@ -293,28 +293,28 @@ RSpec.describe Commands::V2::PutContent do
         expect(edition.title).to eq("Some Title")
       end
 
-      it "sets a draft state for the edition" do
+      it "sets a draft state for the edition" do #integration
         described_class.call(payload)
         edition = Edition.last
 
         expect(edition.state).to eq("draft")
       end
 
-      it "sets a user-facing version of 1 for the edition" do
+      it "sets a user-facing version of 1 for the edition" do #integration
         described_class.call(payload)
         edition = Edition.last
 
         expect(edition.user_facing_version).to eq(1)
       end
 
-      it "creates a lock version for the edition" do
+      it "creates a lock version for the edition" do #integration
         described_class.call(payload)
         edition = Edition.last
 
         expect(edition.document.stale_lock_version).to eq(1)
       end
 
-      shared_examples "creates a change note" do
+      shared_examples "creates a change note" do #integration
         it "creates a change note" do
           expect { described_class.call(payload) }.
             to change { ChangeNote.count }.by(1)
@@ -331,7 +331,7 @@ RSpec.describe Commands::V2::PutContent do
           payload[:details] = { change_history: [change_note] }
         end
 
-        include_examples "creates a change note"
+        include_examples "creates a change note" #integration
       end
 
       context "and the change note is in the details hash" do
@@ -340,7 +340,7 @@ RSpec.describe Commands::V2::PutContent do
           payload[:details] = { change_note: change_note[:note] }
         end
 
-        include_examples "creates a change note"
+        include_examples "creates a change note" #integration
       end
     end
 
@@ -357,21 +357,21 @@ RSpec.describe Commands::V2::PutContent do
         )
       end
 
-      it "updates the edition" do
+      it "updates the edition" do #integration
         described_class.call(payload)
         previously_drafted_item.reload
 
         expect(previously_drafted_item.title).to eq("Some Title")
       end
 
-      it "keeps the content_store as draft" do
+      it "keeps the content_store as draft" do #integration
         described_class.call(payload)
         previously_drafted_item.reload
 
         expect(previously_drafted_item.content_store).to eq("draft")
       end
 
-      it "allows the setting of first_published_at" do
+      it "allows the setting of first_published_at" do #integration
         explicit_first_published = DateTime.new(2016, 05, 23, 1, 1, 1).rfc3339
         payload[:first_published_at] = explicit_first_published
 
@@ -381,7 +381,7 @@ RSpec.describe Commands::V2::PutContent do
           .to eq(explicit_first_published)
       end
 
-      it "keeps the first_published_at timestamp if not set in payload" do
+      it "keeps the first_published_at timestamp if not set in payload" do #integration
         first_published_at = 1.year.ago
         previously_drafted_item.update_attributes(first_published_at: first_published_at)
 
@@ -392,14 +392,14 @@ RSpec.describe Commands::V2::PutContent do
         expect(previously_drafted_item.first_published_at.iso8601).to eq(first_published_at.iso8601)
       end
 
-      it "does not increment the user-facing version for the edition" do
+      it "does not increment the user-facing version for the edition" do #integration
         described_class.call(payload)
         previously_drafted_item.reload
 
         expect(previously_drafted_item.user_facing_version).to eq(1)
       end
 
-      it "increments the lock version for the document" do
+      it "increments the lock version for the document" do #integration
         described_class.call(payload)
 
         expect(document.reload.stale_lock_version).to eq(2)
@@ -413,14 +413,14 @@ RSpec.describe Commands::V2::PutContent do
           )
         end
 
-        it "updates the location's base path" do
+        it "updates the location's base path" do #integration
           described_class.call(payload)
           previously_drafted_item.reload
 
           expect(previously_drafted_item.base_path).to eq("/vat-rates")
         end
 
-        it "creates a redirect" do
+        it "creates a redirect" do #integration
           described_class.call(payload)
 
           redirect = Edition.find_by(
@@ -445,7 +445,7 @@ RSpec.describe Commands::V2::PutContent do
           ])
         end
 
-        it "sends a create request to the draft content store for the redirect" do
+        it "sends a create request to the draft content store for the redirect" do #unit
           expect(DownstreamDraftWorker).to receive(:perform_async_in_queue).twice
 
           described_class.call(payload)
@@ -456,7 +456,7 @@ RSpec.describe Commands::V2::PutContent do
             payload.merge!(locale: "fr", title: "French Title")
           end
 
-          it "creates a separate draft edition in the given locale" do
+          it "creates a separate draft edition in the given locale" do #integration
             described_class.call(payload)
             expect(Edition.count).to eq(2)
 
@@ -477,7 +477,7 @@ RSpec.describe Commands::V2::PutContent do
             )
           end
 
-          it "deletes the substitute item" do
+          it "deletes the substitute item" do #integration
             described_class.call(payload)
             expect(Edition.exists?(id: substitute_item.id)).to eq(false)
           end
@@ -488,7 +488,7 @@ RSpec.describe Commands::V2::PutContent do
               payload.merge!(previous_version: 1)
             end
 
-            it "doesn't delete the substitute item" do
+            it "doesn't delete the substitute item" do #integration
               expect {
                 described_class.call(payload)
               }.to raise_error(CommandError, /Conflict/)
@@ -504,7 +504,7 @@ RSpec.describe Commands::V2::PutContent do
           payload.merge!(previous_version: 1)
         end
 
-        it "raises an error" do
+        it "raises an error" do #unit - is this covered by BaseCommand tests?
           expect {
             described_class.call(payload)
           }.to raise_error(CommandError, /Conflict/)
@@ -518,7 +518,7 @@ RSpec.describe Commands::V2::PutContent do
           payload.delete(:locale)
         end
 
-        it "resets those attributes to their defaults from the database" do
+        it "resets those attributes to their defaults from the database" do #integration
           described_class.call(payload)
           edition = Edition.last
 
@@ -544,7 +544,7 @@ RSpec.describe Commands::V2::PutContent do
             )
           end
 
-          it "updates the existing access limit" do
+          it "updates the existing access limit" do #unit
             described_class.call(payload)
             access_limit.reload
 
@@ -554,7 +554,7 @@ RSpec.describe Commands::V2::PutContent do
         end
 
         context "when the params does not include an access limit" do
-          it "deletes the existing access limit" do
+          it "deletes the existing access limit" do #integration
             expect {
               described_class.call(payload)
             }.to change(AccessLimit, :count).by(-1)
@@ -574,7 +574,7 @@ RSpec.describe Commands::V2::PutContent do
             )
           end
 
-          it "creates a new access limit" do
+          it "creates a new access limit" do #unit
             expect {
               described_class.call(payload)
             }.to change(AccessLimit, :count).by(1)
@@ -600,7 +600,7 @@ RSpec.describe Commands::V2::PutContent do
         access_limit = AccessLimit.last
         expect(access_limit.users).to eq(["new-user"])
         expect(access_limit.edition).to eq(Edition.last)
-      end
+      end #unit
     end
 
     context "when the 'links' parameter is provided" do
@@ -611,7 +611,7 @@ RSpec.describe Commands::V2::PutContent do
       context "invalid UUID" do
         let!(:link) { "not a UUID" }
 
-        it "should raise a validation error" do
+        it "should raise a validation error" do #unit - is this covered by Base Command?
           expect {
             described_class.call(payload)
           }.to raise_error(CommandError, /UUID/)
@@ -622,7 +622,7 @@ RSpec.describe Commands::V2::PutContent do
         let(:document) { FactoryGirl.create(:document) }
         let!(:link) { document.content_id }
 
-        it "should create a link" do
+        it "should create a link" do #unit
           expect {
             described_class.call(payload)
           }.to change(Link, :count).by(1)
@@ -643,7 +643,7 @@ RSpec.describe Commands::V2::PutContent do
         context "draft edition" do
           let(:edition) { FactoryGirl.create(:draft_edition, document: document, base_path: base_path) }
 
-          it "passes the old link to dependency resolution" do
+          it "passes the old link to dependency resolution" do #unit
             expect(DownstreamDraftWorker).to receive(:perform_async_in_queue).with(
               "downstream_high",
               a_hash_including(orphaned_content_ids: [content_id])
@@ -655,7 +655,7 @@ RSpec.describe Commands::V2::PutContent do
         context "published edition" do
           let(:edition) { FactoryGirl.create(:live_edition, document: document, base_path: base_path) }
 
-          it "passes the old link to dependency resolution" do
+          it "passes the old link to dependency resolution" do #unit
             expect(DownstreamDraftWorker).to receive(:perform_async_in_queue).with(
               "downstream_high",
               a_hash_including(orphaned_content_ids: [content_id])
@@ -672,7 +672,7 @@ RSpec.describe Commands::V2::PutContent do
       end
 
       context "when schema requires a base_path" do
-        it "raises an error" do
+        it "raises an error" do #unit - is this covered by BaseCommand tests?
           expect {
             described_class.call(payload)
           }.to raise_error(CommandError, /Base path is not a valid absolute URL path/)
@@ -684,13 +684,13 @@ RSpec.describe Commands::V2::PutContent do
           payload.merge!(schema_name: 'government', document_type: 'government').delete(:format)
         end
 
-        it "does not raise an error" do
+        it "does not raise an error" do #integration
           expect {
             described_class.call(payload)
           }.not_to raise_error
         end
 
-        it "does not try to reserve a path" do
+        it "does not try to reserve a path" do #integration
           expect {
             described_class.call(payload)
           }.not_to change(PathReservation, :count)
@@ -703,18 +703,18 @@ RSpec.describe Commands::V2::PutContent do
         payload.delete(:publishing_app)
       end
 
-      it "raises an error" do
+      it "raises an error" do #unit - covered by BaseCommand tests?
         expect {
           described_class.call(payload)
         }.to raise_error(CommandError, /publishing_app is required/)
       end
     end
 
-    it_behaves_like TransactionalCommand
+    it_behaves_like TransactionalCommand #unit?
 
     context "when the draft does not exist" do
       context "with a provided last_edited_at" do
-        it "stores the provided timestamp" do
+        it "stores the provided timestamp" do #unit
           last_edited_at = 1.year.ago
 
           described_class.call(payload.merge(last_edited_at: last_edited_at))
@@ -725,7 +725,7 @@ RSpec.describe Commands::V2::PutContent do
         end
       end
 
-      it "stores last_edited_at as the current time" do
+      it "stores last_edited_at as the current time" do #unit
         Timecop.freeze do
           described_class.call(payload)
 
@@ -746,7 +746,7 @@ RSpec.describe Commands::V2::PutContent do
       context "with a provided last_edited_at" do
         %w(minor major republish).each do |update_type|
           context "with update_type of #{update_type}" do
-            it "stores the provided timestamp" do
+            it "stores the provided timestamp" do #unit
               last_edited_at = 1.year.ago
 
               described_class.call(
@@ -764,7 +764,7 @@ RSpec.describe Commands::V2::PutContent do
         end
       end
 
-      it "stores last_edited_at as the current time" do
+      it "stores last_edited_at as the current time" do #unit
         Timecop.freeze do
           described_class.call(payload)
 
@@ -775,7 +775,7 @@ RSpec.describe Commands::V2::PutContent do
       end
 
       context "when other update type" do
-        it "dosen't change last_edited_at" do
+        it "doesn't change last_edited_at" do #unit
           old_last_edited_at = edition.last_edited_at
 
           described_class.call(payload.merge(update_type: "republish"))
@@ -790,13 +790,13 @@ RSpec.describe Commands::V2::PutContent do
     context "with a pathless edition payload" do
       let(:payload) { pathless_payload }
 
-      it "saves the content as draft" do
+      it "saves the content as draft" do #integration
         expect {
           described_class.call(payload)
         }.to change(Edition, :count).by(1)
       end
 
-      it "sends to the downstream draft worker" do
+      it "sends to the downstream draft worker" do #unit
         expect(DownstreamDraftWorker).to receive(:perform_async_in_queue)
         described_class.call(payload)
       end
@@ -809,7 +809,7 @@ RSpec.describe Commands::V2::PutContent do
           )
         end
 
-        it "updates the draft" do
+        it "updates the draft" do #integration
           described_class.call(payload)
           expect(draft_edition.reload.title).to eq("Some Title")
         end
@@ -823,7 +823,7 @@ RSpec.describe Commands::V2::PutContent do
           )
         end
 
-        it "creates a new draft" do
+        it "creates a new draft" do #unit
           expect {
             described_class.call(payload)
           }.to change(Edition, :count).by(1)
@@ -839,7 +839,7 @@ RSpec.describe Commands::V2::PutContent do
         )
       end
 
-      it "sends to the content-store" do
+      it "sends to the content-store" do #unit
         expect(DownstreamDraftWorker).to receive(:perform_async_in_queue)
         described_class.call(payload)
       end
@@ -858,7 +858,7 @@ RSpec.describe Commands::V2::PutContent do
           )
         end
 
-        it "doesn't conflict" do
+        it "doesn't conflict" do #integration
           expect {
             described_class.call(payload)
           }.not_to raise_error
@@ -875,7 +875,7 @@ RSpec.describe Commands::V2::PutContent do
           )
         end
 
-        it "conflicts" do
+        it "conflicts" do #integration
           expect {
             described_class.call(payload)
           }.to raise_error(CommandError, /base path=\/vat-rates conflicts/)
@@ -894,7 +894,7 @@ RSpec.describe Commands::V2::PutContent do
         allow(SchemaValidator).to receive(:new).and_return(validator)
       end
 
-      it "raises command error and exits" do
+      it "raises command error and exits" do #unit
         expect(PathReservation).not_to receive(:reserve_base_path!)
         expect { described_class.call(payload) }.to raise_error { |error|
           expect(error).to be_a(CommandError)
@@ -905,14 +905,14 @@ RSpec.describe Commands::V2::PutContent do
     end
 
     context "schema validation passes" do
-      it "returns success" do
+      it "returns success" do #unit
         expect(PathReservation).to receive(:reserve_base_path!)
         expect { described_class.call(payload) }.not_to raise_error
       end
     end
 
     context "field doesn't change between drafts" do
-      it "doesn't update the dependencies" do
+      it "doesn't update the dependencies" do #unit
         expect(DownstreamDraftWorker).to receive(:perform_async_in_queue)
           .with(anything, a_hash_including(update_dependencies: true))
         expect(DownstreamDraftWorker).to receive(:perform_async_in_queue)
