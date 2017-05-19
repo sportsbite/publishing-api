@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+
+import csv
+from collections import defaultdict
+import os
+
+import matplotlib.pyplot as plt
+
+
+days = [str(x) for x in range(365)]
+year_months = [
+    '2015-10', '2015-11', '2015-12',
+    '2016-01', '2016-02', '2016-03', '2016-04', '2016-05', '2016-06', '2016-07', '2016-08', '2016-09', '2016-10', '2016-11', '2016-12',
+    '2017-01', '2017-02', '2017-03', '2017-04', '2017-05',
+]
+
+
+def extract_series(data):
+    x = list(range(len(data)))
+    major_points = [x[0] for x in data]
+    minor_points = [x[1] for x in data]
+    unknown_points = [x[2] for x in data]
+
+    return x, major_points, minor_points, unknown_points
+
+
+def load_data(filename):
+    data = defaultdict(lambda: {})
+
+    tuple_int_row = lambda row: tuple(int(x) for x in row)
+
+    with open(f'data/{filename}') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            if len(row) == 4:  # without supertype
+                data[None][row[0]] = tuple_int_row(row[1:])
+            else:
+                data[row[0]][row[1]] = tuple_int_row(row[2:])
+
+    return data
+
+
+def chart(name, year_month=False):
+    data = load_data(f'{name}.csv')
+
+    if year_month:
+        keys = year_months
+    else:
+        keys = days
+
+    for supertype, categories in data.items():
+        exracted_data = [categories.get(key, (0, 0, 0)) for key in keys]
+
+        print(supertype, exracted_data)
+
+        x, major_points, minor_points, unknown_points = extract_series(exracted_data)
+
+        plt.figure(figsize=(14, 8), dpi=160)
+        plt.title(supertype if supertype else 'All content')
+
+        if year_month:
+            plt.xlabel('Date of publish')
+        else:
+            plt.xlabel('Days since first publish')
+
+        plt.ylabel('Number of updates')
+
+        plt.plot(x, major_points, label='Major')
+        plt.plot(x, minor_points, label='Minor')
+        #plt.plot(x, unknown_points, label='Unknown')
+
+        if year_month:
+            plt.xticks(x, keys, rotation=90)
+
+        plt.legend()
+        plt.grid(True)
+
+        os.makedirs(f'charts/{name}', exist_ok=True)
+        plt.savefig(f'charts/{name}/{supertype}.png')
+
+
+chart('all-by-year-month', year_month=True)
+chart('supertype-by-year-month', year_month=True)
+chart('all-by-days-since-publish')
+chart('supertype-by-days-since-publish')

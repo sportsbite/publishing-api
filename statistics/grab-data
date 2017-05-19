@@ -1,0 +1,46 @@
+#!/usr/bin/env ruby
+
+require File.expand_path("../../config/environment", __FILE__)
+
+require "csv"
+
+class Array
+  def to_csv(filename)
+    puts filename
+    CSV.open(filename, "w") do |csv|
+      self.each { |row| csv << row }
+    end
+  end
+end
+
+$data_path = File.expand_path("../data", __FILE__)
+$supertype_path = File.expand_path("../supertype.sql", __FILE__)
+
+def grab_data
+  sum_major = "SUM(CASE update_type WHEN 'major' THEN 1 ELSE 0 END)"
+  sum_minor = "SUM(CASE update_type WHEN 'minor' THEN 1 ELSE 0 END)"
+  sum_republish = "SUM(CASE update_type WHEN 'republish' THEN 1 ELSE 0 END)"
+  sum_unknown = "SUM(CASE WHEN (update_type IS NULL) THEN 1 ELSE 0 END)"
+
+  supertype = File.read($supertype_path)
+
+  year_month = "TO_CHAR(updated_at, 'YYYY-MM')"
+  days_since_publish = "CEIL(EXTRACT(EPOCH FROM AGE(updated_at, first_published_at)) / 60 / 60 / 24)::int"
+  weeks_since_publish = "CEIL(EXTRACT(EPOCH FROM AGE(updated_at, first_published_at)) / 60 / 60 / 24)::int"
+
+  Edition.group(year_month).pluck(year_month, sum_major, sum_minor, sum_unknown).to_csv("all-by-year-month.csv")
+  Edition.group(supertype, year_month).pluck(supertype, year_month, sum_major, sum_minor, sum_unknown).to_csv("supertype-by-year-month.csv")
+
+  Edition.group(days_since_publish).pluck(days_since_publish, sum_major, sum_minor, sum_unknown).to_csv("all-by-days-since-publish.csv")
+  Edition.group(supertype, days_since_publish).pluck(supertype, days_since_publish, sum_major, sum_minor, sum_unknown).to_csv("supertype-by-days-since-publish.csv")
+end
+
+def main
+  Dir.mkdir($data_path) unless File.exists?($data_path)
+
+  Dir.chdir($data_path) do
+    grab_data
+  end
+end
+
+main
