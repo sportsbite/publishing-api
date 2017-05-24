@@ -79,7 +79,55 @@ def chart(name, year_month=False):
         plt.savefig(f'charts/{name}/{supertype}.png')
 
 
+def grouped_chart(name, year_month=False):
+    data = load_data(f'{name}.csv')
+
+    name += "-grouped"
+
+    if year_month:
+        keys = year_months
+    else:
+        keys = days
+
+    for update_type in ['major', 'minor']:
+        plt.figure(figsize=(14, 8), dpi=160)
+        plt.title(update_type)
+
+        if year_month:
+            plt.xlabel('Date of publish')
+        else:
+            plt.xlabel('Days since first publish')
+
+        plt.ylabel('Number of updates')
+
+        for supertype, categories in data.items():
+            if supertype in ['specialist', 'other']:
+                continue
+
+            exracted_data = [categories.get(key, (0, 0, 0)) for key in keys]
+
+            print(supertype, exracted_data)
+
+            x, major_points, minor_points, unknown_points = extract_series(exracted_data)
+
+            if update_type == 'major':
+                plt.plot(x, major_points, label=supertype)
+            else:
+                plt.plot(x, minor_points, label=supertype)
+
+            if year_month:
+                plt.xticks(x, keys, rotation=90)
+
+        plt.legend()
+        plt.grid(True)
+
+        os.makedirs(f'charts/{name}', exist_ok=True)
+        plt.savefig(f'charts/{name}/{update_type}.png')
+
+
 chart('all-by-year-month', year_month=True)
 chart('supertype-by-year-month', year_month=True)
 chart('all-by-days-since-publish')
 chart('supertype-by-days-since-publish')
+grouped_chart('supertype-by-year-month', year_month=True)
+grouped_chart('supertype-by-days-since-publish')
