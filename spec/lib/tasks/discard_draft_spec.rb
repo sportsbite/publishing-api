@@ -6,4 +6,8 @@ RSpec.describe "Discard draft rake task" do
 
     Rake::Task['discard_draft'].invoke("content_id")
   end
+
+  it "raises an error if a content id is not provided" do
+    expect { Rake::Task['discard_draft'].invoke }.to raise_error('Missing parameter: content_id')
+  end
 end
