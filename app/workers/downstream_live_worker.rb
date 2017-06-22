@@ -40,6 +40,8 @@ class DownstreamLiveWorker
     if edition.state == "published"
       update_type = message_queue_update_type || edition.update_type
       DownstreamService.broadcast_to_message_queue(payload, update_type)
+    elsif edition.state == "unpublished"
+      DownstreamService.broadcast_to_message_queue(payload, "unpublished")
     end
 
     enqueue_dependencies if update_dependencies
