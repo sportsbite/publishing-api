@@ -5,10 +5,11 @@ class LinkExpansion::ContentCache
     @store = build_store(preload_editions, preload_content_ids)
   end
 
-  def find(content_id)
+  def find(content_id, preloaded = false)
     if store.has_key?(content_id)
       store[content_id]
     else
+      puts "#{content_id} not in cache" if preloaded
       store[content_id] = edition(content_id)
     end
   end
@@ -18,12 +19,15 @@ private
   attr_reader :store, :with_drafts, :locale
 
   def build_store(editions, content_ids)
+    start = Time.now
     store = Hash[editions.map { |edition| [edition.content_id, edition] }]
 
     to_preload = content_ids - editions.map(&:content_id)
-    editions(to_preload).each_with_object(store) do |edition, hash|
+    built_store = editions(to_preload).each_with_object(store) do |edition, hash|
       hash[edition.content_id] = edition
     end
+    puts "ContentCache#build_store took #{(Time.now - start)} seconds"
+    built_store
   end
 
   def edition(content_id)

@@ -14,12 +14,19 @@ class LinkExpansion
   end
 
   def initialize(options)
+    ActiveRecord::Base.logger = nil
+    # Benchmark.measure { Presenters::Queries::ExpandedLinkSet.by_content_id("91b8ef20-74e7-4552-880c-50e6d73c2ff9").links }
     @options = options
     @with_drafts = options.fetch(:with_drafts)
+    @start_time = Time.now
+    @timings = { }
   end
 
   def links_with_content
-    populate_links(link_graph.links)
+    populated_links = populate_links(link_graph.links)
+    puts "Method timings:"
+    puts @timings
+    populated_links
   end
 
   def link_graph
@@ -51,26 +58,44 @@ private
     @content_cache ||= ContentCache.new(
       locale: locale,
       preload_editions: edition ? [edition] : [],
-      preload_content_ids: (link_graph.links_content_ids + [content_id]).uniq,
+      preload_content_ids: preload_content_ids,
       with_drafts: with_drafts,
     )
   end
 
+  def preload_content_ids
+    timing = Time.now
+    content_ids = (link_graph.links_content_ids + [content_id]).uniq
+    add_timing("link_graph.links_content_ids", timing)
+    content_ids
+  end
+
   def populate_links(links)
-    links.each_with_object({}) do |link_node, memo|
+    populated = links.each_with_object({}) do |link_node, memo|
       content = link_content(link_node)
       (memo[link_node.link_type] ||= []) << content if content
     end
+    populated
   end
 
   def link_content(node)
-    edition = content_cache.find(node.content_id)
+    timing = Time.now
+    edition = content_cache.find(node.content_id, true)
+    add_timing("content_cache", timing)
     return if !edition || !should_link?(node.link_type, edition)
-    rules.expand_fields(edition, node.link_type).tap do |expanded|
+    ef_timing = Time.now
+    expanded_fields = rules.expand_fields(edition, node.link_type)
+    add_timing("expand_fields", ef_timing)
+    expanded_fields.tap do |expanded|
+      timing = Time.now
       links = populate_links(node.links)
+      add_timing("populate_links", timing)
+      timing = Time.now
       auto_reverse = auto_reverse_link(node)
+      add_timing("auto_reverse_link", timing)
       expanded.merge!(links: (auto_reverse || {}).merge(links))
     end
+    expanded_fields
   end
 
   def auto_reverse_link(node)
@@ -94,5 +119,10 @@ private
 
   def rules
     Rules
+  end
+
+  def add_timing(key, start_time = @start_time)
+    @timings[key] = 0.0 unless @timings.has_key?(key)
+    @timings[key] += (Time.now - start_time)
   end
 end

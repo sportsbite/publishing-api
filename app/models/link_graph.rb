@@ -20,7 +20,10 @@ class LinkGraph
   end
 
   def links
+    start = Time.now
     @links ||= NodeCollectionFactory.new(self).collection
+    puts "LinkGraph#links took #{(Time.now - start)} seconds"
+    @links
   end
 
   def links_content_ids
